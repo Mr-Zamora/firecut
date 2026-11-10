@@ -1329,26 +1329,41 @@ var FireCut = (function () {
     return 'text';
   }
 
-  /* Layered layout: depth from START = column, unreachable scenes go in
-     a greyed column at the far right. */
+  /* Layered layout: longest path from START = column, unreachable scenes
+     go in a greyed column at the far right. */
   function showMap(app) {
     showMapPanel(app, buildMapSvg(app.model));
   }
 
   function buildMapSvg(model) {
-    var levels = {}, queue = [], i, name, d;
+    var levels = {}, dead = {}, i, k, name;
+
+    /* Each scene sits one column right of the furthest scene that leads to
+       it, so links flow left to right. A link back to a scene already on
+       the current path is a loop: it is left out here and drawn below. */
+    var back = {}, state = {}, order = [];
+    function visit(n) {
+      state[n] = 1;
+      each(nextTargets(model.sceneMap[n]), function (t) {
+        if (!model.sceneMap[t]) { return; }
+        if (state[t] === 1) { back[n + '>' + t] = true; }
+        else if (!state[t]) { visit(t); }
+      });
+      state[n] = 2;
+      order.push(n);
+    }
     if (model.start && model.sceneMap[model.start]) {
-      queue.push([model.start, 0]);
-      while (queue.length > 0) {
-        var item = queue.shift();
-        name = item[0]; d = item[1];
-        if (levels[name] !== undefined) { continue; }
-        levels[name] = d;
-        var s = model.sceneMap[name];
-        each(nextTargets(s), function (t) {
-          if (model.sceneMap[t]) { queue.push([t, d + 1]); }
-        });
-      }
+      visit(model.start);
+      levels[model.start] = 0;
+    }
+    for (i = order.length - 1; i >= 0; i--) {
+      name = order[i];
+      each(nextTargets(model.sceneMap[name]), function (t) {
+        if (!model.sceneMap[t] || back[name + '>' + t]) { return; }
+        if (levels[t] === undefined || levels[t] < levels[name] + 1) {
+          levels[t] = levels[name] + 1;
+        }
+      });
     }
     var maxLevel = 0;
     for (name in levels) {
@@ -1362,31 +1377,28 @@ var FireCut = (function () {
       if (levels[s.name] === undefined) {
         deadLevel = maxLevel + 1;
         levels[s.name] = deadLevel;
+        dead[s.name] = true;
       }
     });
 
-    /* Group scenes per column. */
-    var cols = {}, colCount = deadLevel + 1;
-    for (i = 0; i <= deadLevel; i++) { cols[i] = []; }
-    each(model.scenes, function (s) { cols[levels[s.name]].push(s); });
-
-    var boxW = 190, boxH = 60, gapX = 200, rowH = 130;
+    var boxW = 190, boxH = 60, gapX = 200, rowH = 130, slotH = 56;
     var colW = boxW + gapX, padX = 30, padY = 36;
     var FONT = 'font-family="Segoe UI,Arial,sans-serif"';
 
-    /* Edges, merged so one arrow joins any pair of scenes. */
+    /* Edges, merged so one arrow joins any pair of scenes. A merged arrow
+       that includes a TIMER or NEXT keeps the dashed timer style. */
     var edges = [], edgeKey = {};
-    function addEdge(from, to, label, dashed) {
+    function addEdge(from, to, label, timed) {
       if (!model.sceneMap[to]) { return; }
       var key = from.name + '>' + to;
       var e = edgeKey[key];
       if (!e) {
-        e = { from: from.name, to: to, labels: [], dashed: true };
+        e = { from: from.name, to: to, labels: [], dashed: false };
         edgeKey[key] = e;
         edges.push(e);
       }
       if (idxOf(e.labels, label) < 0) { e.labels.push(label); }
-      if (!dashed) { e.dashed = false; }
+      if (timed) { e.dashed = true; }
     }
     each(model.scenes, function (s) {
       each(s.choices, function (ch) { addEdge(s, ch.target, ch.label, false); });
@@ -1394,30 +1406,20 @@ var FireCut = (function () {
       if (s.timerTarget) { addEdge(s, s.timerTarget, 'timer', true); }
     });
 
-    /* Order each column so scenes sit level with the scenes that lead
-       to them (fewer crossing arrows). */
-    var row = {};
-    each(cols[0], function (s, r) { row[s.name] = r; });
-    for (i = 1; i <= deadLevel; i++) {
-      each(cols[i], function (s, r) {
-        var sum = 0, n = 0;
-        each(edges, function (e) {
-          if (e.to === s.name && row[e.from] !== undefined &&
-              levels[e.from] < i) { sum += row[e.from]; n++; }
-        });
-        s._fcBary = n ? sum / n : r + 1000;
-      });
-      cols[i].sort(function (a, b) { return a._fcBary - b._fcBary; });
-      each(cols[i], function (s, r) { row[s.name] = r; });
-    }
-
-    /* Arrows to the next column are curves through the gap. Every other
-       arrow (same column, backwards, skipping columns) runs in its own
-       lane underneath the map so it never crosses a box. */
+    /* Group scenes per column. A forward link that skips columns passes
+       through a small hidden slot in each column it crosses, so it curves
+       through the gaps like any other link. Loops and links touching an
+       unreachable scene run in their own lane underneath the map. */
+    var cols = {}, colCount = deadLevel + 1, segs = [], dummies = 0, colOf = {};
+    for (i = 0; i <= deadLevel; i++) { cols[i] = []; }
+    each(model.scenes, function (s) {
+      cols[levels[s.name]].push({ id: s.name, h: rowH });
+      colOf[s.name] = levels[s.name];
+    });
     var lanes = 0, outCount = {}, inCount = {}, intoFirstCol = false;
     each(edges, function (e) {
-      var d = levels[e.to] - levels[e.from];
-      e.under = d !== 1;
+      var a = levels[e.from], b = levels[e.to];
+      e.under = back[e.from + '>' + e.to] || dead[e.from] || dead[e.to] || b <= a;
       if (e.under) {
         e.lane = lanes++;
         /* Each lane leaves and enters its box at its own height so
@@ -1425,28 +1427,83 @@ var FireCut = (function () {
         e.outIdx = outCount[e.from] || 0; outCount[e.from] = e.outIdx + 1;
         e.inIdx = inCount[e.to] || 0; inCount[e.to] = e.inIdx + 1;
         if (levels[e.to] === 0) { intoFirstCol = true; }
+        return;
+      }
+      e.chain = [e.from];
+      for (k = a + 1; k < b; k++) {
+        var id = '~' + (dummies++);
+        cols[k].push({ id: id, h: slotH, dummy: true });
+        colOf[id] = k;
+        e.chain.push(id);
+      }
+      e.chain.push(e.to);
+      for (k = 0; k + 1 < e.chain.length; k++) {
+        segs.push([e.chain[k], e.chain[k + 1]]);
       }
     });
+
+    var colH = {}, graphH = 0;
+    for (i = 0; i <= deadLevel; i++) {
+      colH[i] = 0;
+      each(cols[i], function (it) { colH[i] += it.h; });
+      if (colH[i] > graphH) { graphH = colH[i]; }
+    }
+
+    /* Order each column so scenes sit level with the scenes that lead
+       to them (fewer crossing arrows), then fix their heights. */
+    var cy = {};
+    function stack(col, h) {
+      var y = padY + (graphH - h) / 2;
+      each(col, function (it) { cy[it.id] = y + it.h / 2; y += it.h; });
+    }
+    function sortCol(c, both) {
+      each(cols[c], function (it, r) {
+        var sum = 0, n = 0;
+        each(segs, function (sg) {
+          if (sg[1] === it.id && cy[sg[0]] !== undefined &&
+              !(both && it.dummy)) { sum += cy[sg[0]]; n++; }
+          if (both && sg[0] === it.id) { sum += cy[sg[1]]; n++; }
+        });
+        it.bary = n ? sum / n : 1e6 + r;
+      });
+      cols[c].sort(function (a, b) { return a.bary - b.bary; });
+      stack(cols[c], colH[c]);
+    }
+    function crossCount(c) {
+      /* Crossing arrows between column c and the next one. */
+      var n = 0, j, m, s = [];
+      each(segs, function (sg) { if (colOf[sg[0]] === c) { s.push(sg); } });
+      for (j = 0; j < s.length; j++) {
+        for (m = j + 1; m < s.length; m++) {
+          if ((cy[s[j][0]] - cy[s[m][0]]) * (cy[s[j][1]] - cy[s[m][1]]) < 0) { n++; }
+        }
+      }
+      return n;
+    }
+    stack(cols[0], colH[0]);
+    for (i = 1; i <= deadLevel; i++) { sortCol(i, false); }
+    /* A second pass right to left also looks at where links go next, and
+       a skipping link lines up with the scene it is heading to so any
+       crossing happens early rather than in the crowded gap before the
+       endings. A reorder that adds crossings is undone. */
+    for (i = deadLevel - 1; i >= 1; i--) {
+      var keep = cols[i].slice(), before = crossCount(i - 1) + crossCount(i);
+      sortCol(i, true);
+      if (crossCount(i - 1) + crossCount(i) > before) {
+        cols[i] = keep;
+        stack(cols[i], colH[i]);
+      }
+    }
+
     /* Every lane gets its own vertical track, so lines never share one. */
     var laneStep = Math.min(10, (gapX / 2 - 20) / Math.max(lanes, 1));
     var padLeft = padX + (intoFirstCol ? 16 + lanes * laneStep : 0);
-
-    var maxRows = 0;
-    for (i = 0; i <= deadLevel; i++) {
-      if (cols[i].length > maxRows) { maxRows = cols[i].length; }
-    }
     var W = colCount * colW - gapX + padLeft + padX;
-    var graphH = maxRows * rowH;
 
     var pos = {};
     for (i = 0; i <= deadLevel; i++) {
-      var col = cols[i];
-      var offY = padY + (graphH - col.length * rowH) / 2;
-      each(col, function (s, r) {
-        pos[s.name] = {
-          x: padLeft + i * colW,
-          y: offY + r * rowH + (rowH - boxH) / 2
-        };
+      each(cols[i], function (it) {
+        pos[it.id] = { x: padLeft + i * colW, y: cy[it.id] - boxH / 2 };
       });
     }
 
@@ -1454,41 +1511,104 @@ var FireCut = (function () {
     var H = laneTop + (lanes ? lanes * laneGap : 0) + padY - (lanes ? 0 : 26);
 
     var placed = [];
-    function freeSpot(x, y, w, h) {
-      /* Nudge a label down until it overlaps no other label or box. */
-      var tries = 0;
-      while (tries < 12) {
-        var hit = false, k;
-        for (k = 0; k < placed.length; k++) {
-          var p = placed[k];
-          if (x - w / 2 < p.x + p.w / 2 && x + w / 2 > p.x - p.w / 2 &&
-              y - h / 2 < p.y + p.h / 2 && y + h / 2 > p.y - p.h / 2) {
-            hit = true; break;
+    function hits(x, y, w, h) {
+      for (var j = 0; j < placed.length; j++) {
+        var p = placed[j];
+        if (x - w / 2 < p.x + p.w / 2 && x + w / 2 > p.x - p.w / 2 &&
+            y - h / 2 < p.y + p.h / 2 && y + h / 2 > p.y - p.h / 2) {
+          return true;
+        }
+      }
+      return false;
+    }
+    function crossings(self, x, y, w, h) {
+      /* How many other links run through this label box, then how much
+         of them, so a line clipping a corner beats one through the middle. */
+      var n = 0, len = 0, j, m, pts, hit;
+      for (j = 0; j < edges.length; j++) {
+        if (edges[j] === self) { continue; }
+        pts = edges[j].pts; hit = false;
+        for (m = 0; m < pts.length; m++) {
+          if (Math.abs(pts[m].x - x) < w / 2 + 3 && Math.abs(pts[m].y - y) < h / 2 + 3) {
+            hit = true; len++;
           }
         }
-        if (!hit) { break; }
-        y += h + 4;
-        tries++;
+        if (hit) { n++; }
+      }
+      return n * 1000 + len;
+    }
+    function freeSpot(e, spots, w, h) {
+      /* The spot on the line crossed by the fewest other links (earlier
+         spots win ties), else nudge the first one down. */
+      var j, x, y, c, best = -1, bestC = 0, tries = 0;
+      for (j = 0; j < spots.length; j++) {
+        if (hits(spots[j].x, spots[j].y, w, h)) { continue; }
+        c = crossings(e, spots[j].x, spots[j].y, w, h);
+        if (best < 0 || c < bestC) { best = j; bestC = c; }
+        if (c === 0) { break; }
+      }
+      if (best >= 0) {
+        x = spots[best].x; y = spots[best].y;
+      } else {
+        x = spots[0].x; y = spots[0].y;
+        while (tries < 12 && hits(x, y, w, h)) { y += h + 4; tries++; }
       }
       placed.push({ x: x, y: y, w: w, h: h });
-      return y;
+      return { x: x, y: y };
+    }
+    function onCurve(x1, y1, x2, y2, t) {
+      var u = 1 - t, m = 1.5 * u * t + t * t * t;
+      return { x: x1 + (x2 - x1) * m, y: y1 + (y2 - y1) * (3 * u * t * t + t * t * t) };
+    }
+    function sampleRun(out, x1, y1, x2, y2) {
+      var n = Math.ceil(Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) / 8);
+      for (var j = 0; j <= n; j++) {
+        out.push({ x: x1 + (x2 - x1) * j / n, y: y1 + (y2 - y1) * j / n });
+      }
     }
     each(model.scenes, function (s) {
       var p = pos[s.name];
       placed.push({ x: p.x + boxW / 2, y: p.y + boxH / 2, w: boxW + 8, h: boxH + 8 });
     });
 
+    /* Labels wrap to fit the gap between columns; anything still cut
+       short shows in full as a tooltip. */
+    var MAXC = 21;
+    function wrap(t, out) {
+      if (t.length <= MAXC) { out.push(t); return false; }
+      var cut = t.lastIndexOf(' ', MAXC);
+      if (cut < 8) { cut = MAXC - 1; }
+      var rest = trim(t.substring(cut)), clipped = false;
+      if (rest.length > MAXC) { rest = rest.substring(0, MAXC - 3) + '...'; clipped = true; }
+      out.push(trim(t.substring(0, cut)), rest);
+      return clipped;
+    }
+
+    /* Draw every line first, keeping points along it, so labels can then
+       keep clear of lines they do not belong to. */
     var lines = [], labels = [];
     each(edges, function (e) {
-      var a = pos[e.from], b = pos[e.to];
+      var a = pos[e.from], b = pos[e.to], spots = [], pts = [];
       var x1 = a.x + boxW, y1 = a.y + boxH / 2;
       var x2 = b.x, y2 = b.y + boxH / 2;
-      var dAttr, lx, ly;
+      var dAttr, j, ts = [0.5, 0.38, 0.62, 0.28, 0.72];
       if (!e.under) {
-        var cx = (x1 + x2) / 2;
-        dAttr = 'M' + x1 + ' ' + y1 + ' C' + cx + ' ' + y1 + ' ' + cx +
-          ' ' + y2 + ' ' + (x2 - 2) + ' ' + y2;
-        lx = cx; ly = (y1 + y2) / 2;
+        /* A link that skips columns is clearest on its straight run. */
+        for (k = 1; k + 1 < e.chain.length; k++) {
+          var dm = pos[e.chain[k]];
+          spots.push({ x: dm.x + boxW / 2, y: dm.y + boxH / 2 });
+        }
+        dAttr = 'M' + x1 + ' ' + y1;
+        for (k = 0; k + 1 < e.chain.length; k++) {
+          var p = pos[e.chain[k]], q = pos[e.chain[k + 1]];
+          var sx = p.x + boxW, sy = p.y + boxH / 2, ex = q.x, ey = q.y + boxH / 2;
+          var cx = (sx + ex) / 2, last = k + 2 === e.chain.length;
+          dAttr += ' C' + cx + ' ' + sy + ' ' + cx + ' ' + ey + ' ' +
+            (last ? ex - 2 : ex) + ' ' + ey + (last ? '' : ' H' + (ex + boxW));
+          for (j = 0; j < ts.length; j++) { spots.push(onCurve(sx, sy, ex, ey, ts[j])); }
+          for (j = 0; j <= 24; j++) { pts.push(onCurve(sx, sy, ex, ey, j / 24)); }
+          if (!last) { sampleRun(pts, ex, ey, ex + boxW, ey); }
+        }
       } else {
         y1 = a.y + boxH / 2 + 12 + e.outIdx * 9;
         y2 = b.y + boxH / 2 + 12 + e.inIdx * 9;
@@ -1496,26 +1616,37 @@ var FireCut = (function () {
         var lyLane = laneTop + e.lane * laneGap;
         dAttr = 'M' + x1 + ' ' + y1 + ' H' + gx1 + ' V' + lyLane +
           ' H' + gx2 + ' V' + y2 + ' H' + (x2 - 2);
-        lx = (gx1 + gx2) / 2; ly = lyLane;
+        spots.push({ x: (gx1 + gx2) / 2, y: lyLane });
+        sampleRun(pts, x1, y1, gx1, y1);
+        sampleRun(pts, gx1, y1, gx1, lyLane);
+        sampleRun(pts, gx1, lyLane, gx2, lyLane);
+        sampleRun(pts, gx2, lyLane, gx2, y2);
+        sampleRun(pts, gx2, y2, x2, y2);
       }
-      var colour = e.dashed ? '#d9a54a' : '#9aa3b8';
-      lines.push('<path d="' + dAttr + '" fill="none" stroke="' + colour +
+      e.spots = spots; e.pts = pts;
+      e.colour = e.dashed ? '#d9a54a' : '#9aa3b8';
+      lines.push('<path d="' + dAttr + '" fill="none" stroke="' + e.colour +
         '" stroke-width="2" stroke-linejoin="round" marker-end="url(#' +
         (e.dashed ? 'fcArrD' : 'fcArr') + ')"' +
         (e.dashed ? ' stroke-dasharray="7 5"' : '') + '/>');
+    });
+
+    each(edges, function (e) {
+      var colour = e.colour;
 
       /* One line per label (a choice and the timer stack neatly) and
          each line is kept narrow enough to fit in the gap. */
-      var rows = [], longest = 0, k;
+      var rows = [], longest = 0, clipped = e.labels.length > 3;
       for (k = 0; k < e.labels.length && k < 3; k++) {
-        var t = e.labels[k];
-        if (t.length > 24) { t = t.substring(0, 23) + '...'; }
-        rows.push(t);
-        if (t.length > longest) { longest = t.length; }
+        if (wrap(e.labels[k], rows)) { clipped = true; }
+      }
+      for (k = 0; k < rows.length; k++) {
+        if (rows[k].length > longest) { longest = rows[k].length; }
       }
       var lineH = 17, w = longest * 7.4 + 24, h = rows.length * lineH + 9;
-      ly = freeSpot(lx, ly, w, h);
-      var g = '<g><rect x="' + (lx - w / 2) + '" y="' + (ly - h / 2) +
+      var at = freeSpot(e, e.spots, w, h), lx = at.x, ly = at.y;
+      var g = '<g>' + (clipped ? '<title>' + esc(e.labels.join(' / ')) + '</title>' : '') +
+        '<rect x="' + (lx - w / 2) + '" y="' + (ly - h / 2) +
         '" width="' + w + '" height="' + h + '" rx="11" fill="#2a2e3b" ' +
         'stroke="' + colour + '" stroke-width="1"/>';
       for (k = 0; k < rows.length; k++) {
