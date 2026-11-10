@@ -1,0 +1,112 @@
+/* ==========================================================================
+   style.css - the look of your story
+   You MAY edit this file. FireCut loads it after its own styles, so
+   anything you write here wins.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   LEVEL 1 - change the variables
+
+   These settings control the colours, font and shape of every FireCut
+   button. Change a value, save, and open PLAY.html again.
+   -------------------------------------------------------------------------- */
+
+:root {
+  --button-colour: #e8452c;        /* normal button colour               */
+  --button-hover-colour: #ff6a3d;  /* button colour when hovered         */
+  --button-text-colour: #ffffff;   /* text colour on buttons             */
+  --font: "Segoe UI", Arial, sans-serif;  /* must be installed on the PC */
+  --button-roundness: 12px;        /* corner roundness, 0 = square       */
+}
+
+/* --------------------------------------------------------------------------
+   LEVEL 2 - write your own rules
+
+   These are the class names FireCut uses. Add normal CSS rules below to
+   restyle any part of the player.
+
+   Screens:
+     .fc-title-screen    the title screen
+     .fc-has-background  added to the title screen when TITLE-BACKGROUND is set
+     .fc-title-box       the panel holding the title and Start button
+     .fc-title           the big story title
+     .fc-ending          the ending screen overlay
+     .fc-ending-msg      the ending message text
+     .fc-ending-num      the "Ending 2 of 3" line
+
+   Buttons:
+     .fc-btn             every plain button (Start, Play again, Close)
+     .fc-start           the Start button
+     .fc-again           the Play again button
+     .fc-choice          each choice button
+     .fc-choice-num      the small round number badge on a choice
+     .fc-choice-label    the words on a choice button
+     .fc-choice-img      a choice button using your own image
+
+   Stage:
+     .fc-video           the video element (rarely needs styling)
+     .fc-caption         TEXT shown over a video scene
+     .fc-static          image and text scenes
+     .fc-static-img      the image in an image scene
+     .fc-static-text     text in image and text scenes
+     .fc-static-caption  TEXT laid over an image scene
+     .fc-timer           the TIMER bar at the top
+     .fc-timer-fill      the shrinking coloured part of the timer
+
+   Example - give choices a shadow and lift on hover:
+
+     .fc-choice {
+       box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+     }
+     .fc-choice:hover {
+       transform: translateY(-3px);
+     }
+   -------------------------------------------------------------------------- */
+
+/* Write your own rules below this line. */
+
+/* Our poster (title-bg.jpg) already has the title painted on it, so the
+   on-screen title is hidden. It is still read out by screen readers,
+   and TITLE in story.js still names the browser tab. */
+.fc-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Remove the dark panel and the darkening over the poster. */
+.fc-title-screen::before {
+  display: none;
+}
+
+.fc-title-box {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  transform: translateX(-50%);
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* Start button sits on the table, under the egg. */
+.fc-start {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.7);
+}
+
+/* --------------------------------------------------------------------------
+   LEVEL 3 - image buttons
+
+   In story.js, add "| filename.png" to the end of a CHOICE to replace the
+   button with your own graphic:
+
+     CHOICE: Open the door -> door | btn-door.png
+
+   If a file called btn-door-hover.png is also in media/, it is shown
+   automatically when the mouse hovers over the button.
+   -------------------------------------------------------------------------- */

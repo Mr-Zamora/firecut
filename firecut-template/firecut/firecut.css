@@ -1,0 +1,534 @@
+/* ==========================================================================
+   FireCut engine styles - version 1
+   Students never edit this file. They customise the look by changing the
+   variables at the top of style.css, which loads after this file.
+   ========================================================================== */
+
+:root {
+  /* Student-editable variables (defaults). The same names are documented
+     in style.css so a single change there applies everywhere. */
+  --button-colour: #e8452c;
+  --button-hover-colour: #ff6a3d;
+  --button-text-colour: #ffffff;
+  --font: "Segoe UI", Arial, sans-serif;
+  --button-roundness: 12px;
+
+  /* Internal theme colours (advanced students may override these too). */
+  --fc-bg: #101014;
+  --fc-panel: #1d1d26;
+  --fc-text: #f4f1ea;
+  --fc-dim: #b8b4a8;
+  --fc-err: #ff8a80;
+  --fc-warn: #ffd180;
+  --fc-ok: #a5d6a7;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--fc-bg);
+  color: var(--fc-text);
+  font-family: var(--font);
+  overflow: hidden;
+}
+
+#fc-root, .fc-root {
+  position: fixed;
+  inset: 0;
+  font-family: var(--font);
+  color: var(--fc-text);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- buttons ---------- */
+
+.fc-btn {
+  font-family: var(--font);
+  font-size: 20px;
+  font-weight: 600;
+  padding: 16px 40px;
+  border: none;
+  border-radius: var(--button-roundness);
+  background: var(--button-colour);
+  color: var(--button-text-colour);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.fc-btn:hover { background: var(--button-hover-colour); }
+.fc-btn:active { transform: scale(0.97); }
+
+/* Clear keyboard focus ring (Tab key) on every button. */
+.fc-btn:focus-visible,
+.fc-choice:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.fc-small { font-size: 15px; padding: 10px 20px; }
+
+/* Quiet secondary buttons (Story map, Checks, Close). */
+.fc-secondary {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--fc-text);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: none;
+}
+
+.fc-secondary:hover { background: rgba(255, 255, 255, 0.26); }
+
+/* ---------- title screen ---------- */
+
+.fc-title-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--fc-bg) center / cover no-repeat;
+}
+
+/* Darkens a busy title background so the title stays readable. */
+.fc-title-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center,
+    rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+.fc-title-box {
+  position: relative;
+  text-align: center;
+  padding: 48px 64px;
+  max-width: 90vw;
+  background: rgba(10, 10, 16, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--button-roundness);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+.fc-title {
+  margin: 0 0 32px;
+  font-size: clamp(34px, 6vw, 60px);
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  color: #ffffff;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.8);
+}
+
+.fc-start { min-width: 240px; font-size: 24px; }
+
+.fc-title-corner {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 10px;
+}
+
+.fc-keys-hint {
+  position: absolute;
+  left: 16px;
+  bottom: 22px;
+  font-size: 14px;
+  color: var(--fc-dim);
+  text-shadow: 0 1px 4px #000;
+}
+
+.fc-music-note {
+  position: absolute;
+  left: 16px;
+  bottom: 46px;
+  font-size: 13px;
+  color: var(--fc-dim);
+  text-shadow: 0 1px 4px #000;
+}
+
+.fc-keys-hint b {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  margin: 0 2px;
+  text-align: center;
+  color: var(--fc-text);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+}
+
+/* ---------- stage and video ---------- */
+
+.fc-stage {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+.fc-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+/* ---------- image / text scenes ---------- */
+
+.fc-static {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  padding: 32px;
+}
+
+.fc-static-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.fc-static-text {
+  font-size: 34px;
+  line-height: 1.4;
+  text-align: center;
+  max-width: 60ch;
+  padding: 16px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+.fc-static-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 24%;
+  transform: translateX(-50%);
+  font-size: 28px;
+  padding: 12px 26px;
+  background: rgba(0, 0, 0, 0.65);
+  border-radius: var(--button-roundness);
+  max-width: 80%;
+}
+
+/* ---------- caption over video ---------- */
+
+.fc-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  transform: translateX(-50%);
+  display: none;
+  font-size: 26px;
+  padding: 10px 22px;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: var(--button-roundness);
+  max-width: 80%;
+  text-align: center;
+}
+
+/* ---------- choices ---------- */
+
+/* Dark fade along the bottom so buttons stand out on bright video. */
+.fc-choices {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  padding: 80px 24px 5vh;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+  animation: fc-rise 0.25s ease-out;
+}
+
+@keyframes fc-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fc-choice {
+  font-family: var(--font);
+  font-size: 24px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 220px;
+  padding: 18px 30px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--button-roundness);
+  background: var(--button-colour);
+  color: var(--button-text-colour);
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.fc-choice:hover {
+  background: var(--button-hover-colour);
+  transform: translateY(-2px);
+}
+.fc-choice:active { transform: scale(0.97); }
+
+/* Flash on the button the TIMER takes by default. */
+.fc-choice-picked {
+  background: var(--button-hover-colour) !important;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.55),
+              0 0 24px var(--button-hover-colour);
+  transform: scale(1.05);
+}
+
+.fc-choice-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 18px;
+}
+
+/* Image buttons: the student's graphic replaces the button face. */
+.fc-choice-img {
+  width: 220px;
+  min-width: 0;
+  height: 140px;
+  padding: 0;
+  background: transparent center / contain no-repeat;
+  border: none;
+  box-shadow: none;
+}
+
+.fc-choice-img:hover { background-color: transparent; }
+
+/* ---------- timer bar ---------- */
+
+.fc-timer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  display: none;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.fc-timer-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--button-colour);
+  box-shadow: 0 0 12px var(--button-colour);
+  transition: width 0.1s linear;
+}
+
+/* ---------- endings ---------- */
+
+.fc-ending {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  animation: fc-fade 0.4s ease-out;
+}
+
+@keyframes fc-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.fc-ending-box {
+  text-align: center;
+  padding: 48px 64px;
+  max-width: 90vw;
+}
+
+.fc-ending-msg {
+  font-size: clamp(28px, 4.5vw, 44px);
+  line-height: 1.2;
+  margin-bottom: 18px;
+  color: #ffffff;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+}
+
+.fc-ending-num {
+  font-size: 18px;
+  color: var(--fc-dim);
+  margin-bottom: 36px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---------- checks / error screens ---------- */
+
+.fc-checking {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--fc-dim);
+}
+
+.fc-check-screen {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 48px 8vw;
+  background: var(--fc-bg);
+}
+
+.fc-check-screen > * { max-width: 900px; }
+
+.fc-check-title { font-size: 34px; margin: 0 0 12px; color: #ffffff; }
+.fc-check-intro { color: var(--fc-dim); font-size: 18px; margin: 0 0 24px; }
+
+.fc-check-list { list-style: none; margin: 0; padding: 0; }
+
+.fc-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 17px;
+  line-height: 1.55;
+  padding: 14px 18px;
+  margin: 10px 0;
+  color: var(--fc-text);
+  border-radius: var(--button-roundness);
+  background: var(--fc-panel);
+  border-left: 5px solid transparent;
+}
+
+.fc-err  { border-left-color: var(--fc-err); }
+.fc-warn { border-left-color: var(--fc-warn); }
+.fc-ok   { border-left-color: var(--fc-ok); }
+
+/* Small coloured label in front of each message. */
+.fc-badge {
+  flex-shrink: 0;
+  min-width: 76px;
+  padding: 2px 8px;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  border-radius: 6px;
+  color: #15151c;
+}
+
+.fc-err  .fc-badge { background: var(--fc-err); }
+.fc-warn .fc-badge { background: var(--fc-warn); }
+.fc-ok   .fc-badge { background: var(--fc-ok); }
+
+/* ---------- overlays (checks panel, story map) ---------- */
+
+.fc-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  animation: fc-fade 0.2s ease-out;
+}
+
+.fc-checks-panel {
+  width: min(760px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  color: var(--fc-text);
+  background: var(--fc-panel);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--button-roundness);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  padding: 28px 32px;
+}
+
+.fc-checks-title { margin: 0 0 16px; font-size: 26px; color: #ffffff; }
+.fc-close-btn { margin-top: 16px; }
+
+/* ---------- story map ---------- */
+
+.fc-map-panel {
+  width: min(1500px, 97vw);
+  max-height: 94vh;
+  padding: 24px 28px;
+}
+
+.fc-map-hint {
+  margin: 0 0 10px;
+  color: var(--fc-dim);
+  font-size: 15px;
+}
+
+.fc-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--fc-text);
+}
+
+.fc-lg-item { display: inline-flex; align-items: center; gap: 8px; }
+
+.fc-lg-swatch {
+  display: inline-block;
+  width: 26px;
+  height: 16px;
+  border-radius: 4px;
+  background: #262a36;
+  border: 2px solid #5a6178;
+}
+
+.fc-lg-video { border: 3px solid #4ade80; }
+.fc-lg-start {
+  background: transparent;
+  border: 2px solid #5a6178;
+  outline: 2px solid #7aa7ff;
+  outline-offset: 2px;
+}
+.fc-lg-end   { background: #3d2318; border-color: #ff6a3d; }
+.fc-lg-dead  { background: #1a1a21; border: 2px dashed #ff5252; }
+.fc-lg-choice, .fc-lg-auto {
+  height: 0;
+  border: none;
+  border-radius: 0;
+  border-top: 3px solid #9aa3b8;
+  background: none;
+}
+.fc-lg-auto { border-top: 3px dashed #d9a54a; }
+
+.fc-map-wrap {
+  overflow: auto;
+  max-height: 72vh;
+  padding: 10px;
+  border-radius: var(--button-roundness);
+  background: #14151b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fc-map-node rect { transition: filter 0.15s ease; }
+.fc-map-node:hover rect { filter: brightness(1.35); }
