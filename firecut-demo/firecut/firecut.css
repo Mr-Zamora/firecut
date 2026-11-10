@@ -91,6 +91,30 @@ html, body {
   align-items: center;
   justify-content: center;
   background: var(--fc-bg) center / cover no-repeat;
+  z-index: 0;   /* keeps the background video inside the title screen */
+}
+
+/* TITLE-BACKGROUND as a video: fills the screen behind everything. */
+.fc-title-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+}
+
+/* TITLE-OVERLAY: a see-through PNG over the background, under the
+   Start button. Shown centred at its real size, and only shrunk if it
+   is bigger than the screen. */
+.fc-title-overlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 100%;
+  max-height: 100%;
+  pointer-events: none;
 }
 
 /* Darkens a busy title background so the title stays readable. */

@@ -34,7 +34,8 @@ ignores it. Blank lines are fine anywhere - use them between scenes.
 |---|---|---|---|
 | TITLE | Yes | The story's name (also names the browser tab) | `TITLE: The Golden Egg` |
 | START | Yes | Which scene plays first | `START: intro` |
-| TITLE-BACKGROUND | No | Image behind the title screen | `TITLE-BACKGROUND: poster.jpg` |
+| TITLE-BACKGROUND | No | Image, or a silent looping video, behind the title screen | `TITLE-BACKGROUND: poster.jpg` |
+| TITLE-OVERLAY | No | See-through PNG laid over the background (a logo or title art) | `TITLE-OVERLAY: logo.png` |
 | TITLE-MUSIC | No | Music on the title screen (starts on first click) | `TITLE-MUSIC: theme.mp3` |
 | WAIT-LOOP | No | Audio that loops while choices are shown | `WAIT-LOOP: ambient.mp3` |
 
@@ -145,6 +146,19 @@ SCENE: caught
 TEXT: The alarm blares. It is over.
 ENDING: Bad ending! The guards heard everything.
 ```
+
+**A moving title screen with your logo on top**
+
+```
+TITLE-BACKGROUND: title-loop.mp4
+TITLE-OVERLAY: logo.png
+TITLE-MUSIC: theme.mp3
+```
+
+The video loops with no sound, so add TITLE-MUSIC for audio. The logo
+PNG needs a transparent background. It shows in the middle of the
+screen at its real size (only shrinking if it is bigger than the
+screen), so resize the PNG itself to make it bigger or smaller.
 
 ## Media files - everything goes in `media/`
 

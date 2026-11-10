@@ -145,7 +145,8 @@ ENDING: Splash ending! Nobody saw that cannonball coming.
 | --- | --- | --- | --- |
 | TITLE | Yes | Name shown on the title screen | `TITLE: Lost in the Library` |
 | START | Yes | The first scene to play | `START: intro` |
-| TITLE-BACKGROUND | No | Image or video behind the title screen | `TITLE-BACKGROUND: poster.png` |
+| TITLE-BACKGROUND | No | Image or video behind the title screen (a video loops, muted) | `TITLE-BACKGROUND: poster.png` |
+| TITLE-OVERLAY | No | See-through PNG laid over the title background, under the Start button | `TITLE-OVERLAY: logo.png` |
 | WAIT-LOOP | No | Default audio that loops while choices are shown | `WAIT-LOOP: ambient.mp3` |
 
 **Scene keywords** (under each SCENE line)

@@ -36,7 +36,8 @@ FireCut.story(`
 | --- | --- | --- |
 | TITLE | Name on the title screen (required) | `TITLE: Lost in the Library` |
 | START | First scene to play (required) | `START: intro` |
-| TITLE-BACKGROUND | Image behind the title screen | `TITLE-BACKGROUND: poster.png` |
+| TITLE-BACKGROUND | Image, or a silent looping video, behind the title screen | `TITLE-BACKGROUND: poster.png` |
+| TITLE-OVERLAY | See-through PNG over the background (logo or title art) | `TITLE-OVERLAY: logo.png` |
 | TITLE-MUSIC | Music on the title screen (starts on the first click) | `TITLE-MUSIC: theme.mp3` |
 | WAIT-LOOP | Audio loop while choices are shown | `WAIT-LOOP: ambient.mp3` |
 

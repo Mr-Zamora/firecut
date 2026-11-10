@@ -63,7 +63,7 @@ var FireCut = (function () {
 
   var STORY_KEYS = {
     'TITLE': 1, 'START': 1, 'TITLE-BACKGROUND': 1, 'WAIT-LOOP': 1,
-    'TITLE-MUSIC': 1
+    'TITLE-MUSIC': 1, 'TITLE-OVERLAY': 1
   };
 
   var SCENE_KEYS = {
@@ -100,7 +100,8 @@ var FireCut = (function () {
 
   function suggest(key) {
     /* Find the closest known keyword for a "did you mean" hint. */
-    var all = ['TITLE', 'START', 'TITLE-BACKGROUND', 'WAIT-LOOP', 'SCENE',
+    var all = ['TITLE', 'START', 'TITLE-BACKGROUND', 'TITLE-OVERLAY',
+      'TITLE-MUSIC', 'WAIT-LOOP', 'SCENE',
       'VIDEO', 'IMAGE', 'TEXT', 'MUSIC', 'DURATION', 'CHOICE', 'NEXT',
       'ENDING', 'CHOICES-AT', 'TIMER'];
     var best = null, bestScore = 4;
@@ -159,6 +160,7 @@ var FireCut = (function () {
       title: null, titleLine: 0,
       start: null, startLine: 0,
       titleBackground: null, titleBackgroundLine: 0,
+      titleOverlay: null, titleOverlayLine: 0,
       titleMusic: null, titleMusicLine: 0,
       waitLoop: null, waitLoopLine: 0,
       scenes: [],
@@ -244,6 +246,9 @@ var FireCut = (function () {
             }
           } else if (key === 'TITLE-BACKGROUND') {
             model.titleBackground = value; model.titleBackgroundLine = num;
+            addMedia(model, value, num);
+          } else if (key === 'TITLE-OVERLAY') {
+            model.titleOverlay = value; model.titleOverlayLine = num;
             addMedia(model, value, num);
           } else if (key === 'WAIT-LOOP') {
             model.waitLoop = value; model.waitLoopLine = num;
@@ -412,6 +417,25 @@ var FireCut = (function () {
       err(errors, model.startLine, 'START points to a scene called "' +
         model.start + '", but there is no scene with that name. ' +
         'Check the spelling.');
+    }
+
+    /* Title screen files: the background can be a picture or a looping
+       video, the overlay must be a see-through PNG. */
+    if (model.titleBackground && mediaKind(model.titleBackground) === 'audio') {
+      warn(warnings, model.titleBackgroundLine, 'TITLE-BACKGROUND needs a ' +
+        'picture (PNG or JPG) or a video (MP4), not a sound file. For title ' +
+        'music use TITLE-MUSIC.');
+    }
+    if (model.titleOverlay) {
+      var ovExt = fileExt(model.titleOverlay);
+      if (ovExt === 'jpg' || ovExt === 'jpeg') {
+        warn(warnings, model.titleOverlayLine, 'TITLE-OVERLAY is a JPG, and ' +
+          'JPGs cannot be see-through, so it will cover the background. ' +
+          'Save it as a PNG with a transparent background.');
+      } else if (ovExt === 'mp4' || ovExt === 'm4v' || ovExt === 'mp3') {
+        warn(warnings, model.titleOverlayLine, 'TITLE-OVERLAY needs a PNG ' +
+          'picture. To put a video behind the title, use TITLE-BACKGROUND.');
+      }
     }
 
     var clipCount = 0;
@@ -807,10 +831,32 @@ var FireCut = (function () {
        hides the on-screen title because their poster already shows it. */
     document.title = app.model.title;
     var ts = el('div', 'fc-title-screen');
-    if (app.model.titleBackground) {
+    var bg = app.model.titleBackground;
+    stopTitleVideo(app);
+    if (bg && mediaKind(bg) === 'video') {
+      /* A video background loops silently. Muted is what lets browsers
+         start it without a click. */
+      ts.className += ' fc-has-background fc-has-video';
+      var tv = el('video', 'fc-title-video');
+      tv.muted = true;
+      tv.loop = true;
+      tv.autoplay = true;
+      tv.setAttribute('muted', 'muted');
+      tv.setAttribute('playsinline', 'playsinline');
+      tv.src = MEDIA_DIR + bg;
+      ts.appendChild(tv);
+      app.titleVideo = tv;
+      var tp = tv.play();
+      if (tp && tp['catch']) { tp['catch'](function () {}); }
+    } else if (bg) {
       ts.className += ' fc-has-background';
-      ts.style.backgroundImage = "url('" + MEDIA_DIR +
-        app.model.titleBackground + "')";
+      ts.style.backgroundImage = "url('" + MEDIA_DIR + bg + "')";
+    }
+    if (app.model.titleOverlay) {
+      var ov = el('img', 'fc-title-overlay');
+      ov.src = MEDIA_DIR + app.model.titleOverlay;
+      ov.alt = '';
+      ts.appendChild(ov);
     }
     var box = el('div', 'fc-title-box');
     box.appendChild(el('h1', 'fc-title', app.model.title));
@@ -1045,6 +1091,7 @@ var FireCut = (function () {
     stopWaitLoop(app);
     stopMusic(app);
     stopTitleMusic(app);
+    stopTitleVideo(app);
     clearTimers(app);
     if (scene.video) {
       videoScene(app, scene);
@@ -1313,6 +1360,15 @@ var FireCut = (function () {
     if (app.titleAudio) {
       try { app.titleAudio.pause(); } catch (e) {}
       app.titleAudio = null;
+    }
+  }
+
+  /* Free the title video once the story starts, so it does not hold
+     memory or keep decoding in the background. */
+  function stopTitleVideo(app) {
+    if (app.titleVideo) {
+      releaseVideo(app.titleVideo);
+      app.titleVideo = null;
     }
   }
 

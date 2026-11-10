@@ -217,6 +217,41 @@ var TEST_STORIES = [
   },
 
   {
+    name: 'TITLE-BACKGROUND video + TITLE-OVERLAY png are allowed',
+    text: "TITLE: Test\nSTART: a\nTITLE-BACKGROUND: loop.mp4\nTITLE-OVERLAY: logo.png\n\nSCENE: a\nVIDEO: a.mp4\nENDING: done\n",
+    errors: [],
+    warnings: []
+  },
+
+  {
+    name: 'TITLE-BACKGROUND sound file warns',
+    text: "TITLE: Test\nSTART: a\nTITLE-BACKGROUND: theme.mp3\n\nSCENE: a\nVIDEO: a.mp4\nENDING: done\n",
+    errors: [],
+    warnings: [{ line: 3, has: 'TITLE-MUSIC' }]
+  },
+
+  {
+    name: 'TITLE-OVERLAY jpg warns',
+    text: "TITLE: Test\nSTART: a\nTITLE-OVERLAY: logo.jpg\n\nSCENE: a\nVIDEO: a.mp4\nENDING: done\n",
+    errors: [],
+    warnings: [{ line: 3, has: 'cannot be see-through' }]
+  },
+
+  {
+    name: 'TITLE-OVERLAY video warns',
+    text: "TITLE: Test\nSTART: a\nTITLE-OVERLAY: loop.mp4\n\nSCENE: a\nVIDEO: a.mp4\nENDING: done\n",
+    errors: [],
+    warnings: [{ line: 3, has: 'use TITLE-BACKGROUND' }]
+  },
+
+  {
+    name: 'TITLE-OVERLAY inside a scene is an error',
+    text: "TITLE: Test\nSTART: a\n\nSCENE: a\nVIDEO: a.mp4\nTITLE-OVERLAY: logo.png\nENDING: done\n",
+    errors: [{ line: 6, has: 'belongs at the top' }],
+    warnings: []
+  },
+
+  {
     name: 'unreachable scene only',
     text: "TITLE: Test\nSTART: a\n\nSCENE: a\nVIDEO: a.mp4\nENDING: done\n\nSCENE: orphan\nVIDEO: b.mp4\nENDING: done\n",
     errors: [],

@@ -18,7 +18,8 @@ FireCut.story(`
 
 TITLE: The Golden Egg
 START: intro
-TITLE-BACKGROUND: title-bg.jpg
+TITLE-BACKGROUND: title-bg.mp4
+TITLE-OVERLAY: transparent-title-centre.png
 TITLE-MUSIC: title.mp3
 WAIT-LOOP: ambient.mp3
 

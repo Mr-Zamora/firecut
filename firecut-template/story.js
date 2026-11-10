@@ -9,7 +9,8 @@ START: intro
 
 # Change the title above to your story's name.
 # Optional extras you can add here:
-#   TITLE-BACKGROUND: poster.jpg   (image behind the title screen)
+#   TITLE-BACKGROUND: poster.jpg   (image or looping video behind the title screen)
+#   TITLE-OVERLAY: logo.png        (see-through PNG over the background)
 #   TITLE-MUSIC: theme.mp3         (music on the title screen)
 #   WAIT-LOOP: ambient.mp3         (audio while choices are shown)
 

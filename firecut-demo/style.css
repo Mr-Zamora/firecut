@@ -28,6 +28,9 @@
    Screens:
      .fc-title-screen    the title screen
      .fc-has-background  added to the title screen when TITLE-BACKGROUND is set
+     .fc-has-video       added as well when TITLE-BACKGROUND is a video
+     .fc-title-video     the looping title background video
+     .fc-title-overlay   the TITLE-OVERLAY picture
      .fc-title-box       the panel holding the title and Start button
      .fc-title           the big story title
      .fc-ending          the ending screen overlay
@@ -92,6 +95,13 @@
   border: none;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+/* Title art sits near the top of the screen at its real size, so the
+   egg ends above the Start button. */
+.fc-title-overlay {
+  top: 3%;
+  transform: translateX(-50%);
 }
 
 /* Start button sits on the table, under the egg. */
