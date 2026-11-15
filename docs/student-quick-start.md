@@ -8,12 +8,33 @@ and `style.css`, and drop media files into `media/`.
 
 ```
 My-Story/
+  EDITOR.html    double-click this to write and test your story
   PLAY.html      double-click this to play
-  story.js       your story (edit this)
+  story.js       your story (EDITOR.html saves this)
   style.css      the look (you may edit)
   media/         all your videos, images and sound
   firecut/       the engine - do not edit
 ```
+
+## Editing with EDITOR.html
+
+Double-click `EDITOR.html` to open your story side-by-side with the Story map
+and checker:
+
+- The first and last lines of `story.js` are locked and backticks are blocked,
+  so you cannot accidentally break the wrapper.
+- **Map (`Alt+1`):** updates live as you type. Click a scene box to jump to it,
+  or right-click a box to play from that scene.
+- **Checks (`Alt+2`):** shows errors and warnings as you type. Click any message
+  to jump to that line.
+- **Media (`Alt+3`):** click **Choose media folder** and pick `media/` to check
+  for missing files and click any file to insert it at the cursor.
+- **Insert:** drops in ready-made scene blocks (timer scene, image with music,
+  ending card, and more).
+- **Play (`Ctrl+Enter`):** previews your unsaved story on the spot
+  (`Ctrl+Shift+Enter` plays from the current scene).
+- **Download / Save (`Ctrl+S`):** saves back to `story.js` so `PLAY.html` has
+  your latest changes.
 
 ## story.js rules
 

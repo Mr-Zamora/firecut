@@ -5,6 +5,7 @@
 Copy `firecut-template/` and rename the folder to the student's
 project name. Everything they need is inside:
 
+- `EDITOR.html` - double-click to edit `story.js` with a live map, checker and preview
 - `PLAY.html` - double-click to play, works offline on Chrome/Edge
 - `story.js` - the story file (starter story included)
 - `style.css` - commented customisation file
@@ -13,6 +14,25 @@ project name. Everything they need is inside:
 
 A working example lives in `firecut-demo/` (6 scenes, timer,
 image scene, 3 endings, waiting loop, title background).
+
+## Editing with EDITOR.html
+
+Students can write their story in `EDITOR.html` instead of Notepad. It runs
+offline from `file://` in Chrome or Edge and uses the same parser, checker and
+player as `PLAY.html`:
+
+- Locks the `FireCut.story(` and `);` wrapper lines and blocks backticks,
+  preventing the most common syntax mistakes before they happen.
+- Updates the **Map** and **Checks** tabs live as students type, with
+  click-to-jump from every scene box and error message.
+- **Media** tab lets students choose their `media/` folder to see used and
+  unused clips, catch missing files early, and click a file to insert it.
+- **Play** (`Ctrl+Enter`) and **Play from here** (`Ctrl+Shift+Enter` or
+  right-clicking a map box) test the unsaved story in an overlay without
+  leaving the editor.
+- **Download / Save** (`Ctrl+S`) writes directly to `story.js` in Chrome/Edge
+  via the file picker (or downloads `story.js` as a fallback), and keeps an
+  automatic browser draft in case a laptop closes before saving.
 
 ## Checking a project
 
@@ -59,8 +79,9 @@ USB or Canvas) given the size.
 From the repo root:
 
 ```
-cscript //E:jscript //Nologo tests/run-check-tests.js   parser + checker
-python tests/run-media-tests.py                        media probing
+cscript //E:jscript //Nologo tests/run-check-tests.js    parser + checker
+cscript //E:jscript //Nologo tests/run-editor-tests.js   editor helpers
+python tests/run-media-tests.py                         media probing
 ```
 
 `tests/parser-test.html` runs the same fixtures in a browser

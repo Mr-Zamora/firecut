@@ -712,33 +712,7 @@ var FireCut = (function () {
     checkMedia(res.model, MEDIA_DIR, function (mediaResults) {
       var errors = res.errors.slice(0);
       var warnings = res.warnings.slice(0);
-      each(mediaResults, function (r) {
-        if (r.status === 'missing') {
-          errors.push({
-            type: 'error', line: r.line,
-            text: 'Line ' + r.line + ': the file "' + r.file +
-              '" is named in the story but is missing from the media ' +
-              'folder, or cannot be opened. Check the spelling of the name ' +
-              'in both places. If the name is right, export the file again ' +
-              'as MP4 (H.264), PNG, JPG or MP3.'
-          });
-        } else if (r.status === 'unplayable') {
-          warnings.push({
-            type: 'warning', line: r.line,
-            text: 'Line ' + r.line + ': the file "' + r.file +
-              '" is there, but it will not play in the browser. It is ' +
-              'probably the wrong format. Export it as MP4 (H.264), ' +
-              'PNG, JPG or MP3.'
-          });
-        } else if (r.status === 'badext') {
-          errors.push({
-            type: 'error', line: r.line,
-            text: 'Line ' + r.line + ': "' + r.file +
-              '" is a file type FireCut does not use. Videos must be mp4, ' +
-              'images png or jpg, sound mp3.'
-          });
-        }
-      });
+      appendMediaMessages(mediaResults, errors, warnings);
       clear(root);
       if (errors.length > 0) {
         showCheckScreen(root, errors, warnings, true);
@@ -750,12 +724,113 @@ var FireCut = (function () {
         current: null, stage: null, videos: null, activeVideo: null,
         staticBox: null, choicesBox: null, timerBar: null, caption: null,
         audioUnlocked: false, muted: false,
-        waitAudio: null, waitFade: null, choiceEls: [],
-        titleAudio: null, titleMusicArmed: false, titleKeyHandler: null,
-        openChoices: null, timerIv: null, staticIv: null
+        waitAudio: null, waitFade: null, fadeOutAudio: null, fadeOutIv: null,
+        choiceEls: [],
+        titleAudio: null, titleMusicIv: null, titleMusicArmed: false,
+        titleKeyHandler: null,
+        openChoices: null, timerIv: null, staticIv: null,
+        isPreview: false, stopped: false, keyHandler: null
       };
       showTitle(app);
     });
+  }
+
+  function appendMediaMessages(mediaResults, errors, warnings) {
+    each(mediaResults, function (r) {
+      if (r.status === 'missing') {
+        errors.push({
+          type: 'error', line: r.line,
+          text: 'Line ' + r.line + ': the file "' + r.file +
+            '" is named in the story but is missing from the media ' +
+            'folder, or cannot be opened. Check the spelling of the name ' +
+            'in both places. If the name is right, export the file again ' +
+            'as MP4 (H.264), PNG, JPG or MP3.'
+        });
+      } else if (r.status === 'unplayable') {
+        warnings.push({
+          type: 'warning', line: r.line,
+          text: 'Line ' + r.line + ': the file "' + r.file +
+            '" is there, but it will not play in the browser. It is ' +
+            'probably the wrong format. Export it as MP4 (H.264), ' +
+            'PNG, JPG or MP3.'
+        });
+      } else if (r.status === 'badext') {
+        errors.push({
+          type: 'error', line: r.line,
+          text: 'Line ' + r.line + ': "' + r.file +
+            '" is a file type FireCut does not use. Videos must be mp4, ' +
+            'images png or jpg, sound mp3.'
+        });
+      }
+    });
+  }
+
+  /* Play the given story text inside container, optionally starting from
+     sceneName. Returns a stop() function that halts all media and timers. */
+  function preview(text, sceneName, container) {
+    var root = typeof container === 'string' ?
+      document.getElementById(container) : container;
+    if (!root) { return function () {}; }
+    clear(root);
+
+    var app = {
+      root: root, model: null,
+      errors: [], warnings: [],
+      current: null, stage: null, videos: null, activeVideo: null,
+      staticBox: null, choicesBox: null, timerBar: null, caption: null,
+      audioUnlocked: true, muted: false,
+      waitAudio: null, waitFade: null, fadeOutAudio: null, fadeOutIv: null,
+      choiceEls: [],
+      titleAudio: null, titleMusicIv: null, titleMusicArmed: false,
+      titleKeyHandler: null,
+      openChoices: null, timerIv: null, staticIv: null,
+      isPreview: true, stopped: false, keyHandler: null
+    };
+
+    var res = parseStory(String(text || ''));
+    app.model = res.model;
+    var checking = el('div', 'fc-checking', 'Checking media files...');
+    root.appendChild(checking);
+
+    checkMedia(res.model, MEDIA_DIR, function (mediaResults) {
+      if (app.stopped) { return; }
+      var errors = res.errors.slice(0);
+      var warnings = res.warnings.slice(0);
+      appendMediaMessages(mediaResults, errors, warnings);
+      app.errors = errors;
+      app.warnings = warnings;
+      clear(root);
+      if (errors.length > 0) {
+        showCheckScreen(root, errors, warnings, true);
+        return;
+      }
+      bindKeys(app);
+      if (sceneName && res.model.sceneMap[sceneName]) {
+        playScene(app, sceneName);
+      } else {
+        showTitle(app);
+      }
+    });
+
+    return function () {
+      if (app.stopped) { return; }
+      app.stopped = true;
+      app.current = null;
+      clearTimers(app);
+      stopWaitLoop(app);
+      stopMusic(app);
+      stopTitleMusic(app);
+      stopTitleVideo(app);
+      if (app.videos) {
+        each(app.videos, releaseVideo);
+        app.activeVideo = null;
+      }
+      if (app.keyHandler) {
+        document.removeEventListener('keydown', app.keyHandler);
+        app.keyHandler = null;
+      }
+      clear(root);
+    };
   }
 
   /* ---------- check / error screens ---------- */
@@ -817,6 +892,7 @@ var FireCut = (function () {
   /* ---------- title screen ---------- */
 
   function showTitle(app) {
+    if (app.stopped) { return; }
     clear(app.root);
     app.current = null;
     /* Release every pooled clip so memory stays low on the title screen. */
@@ -829,7 +905,7 @@ var FireCut = (function () {
     clearTimers(app);
     /* The story title always names the browser tab, even when a student
        hides the on-screen title because their poster already shows it. */
-    document.title = app.model.title;
+    if (!app.isPreview) { document.title = app.model.title; }
     var ts = el('div', 'fc-title-screen');
     var bg = app.model.titleBackground;
     stopTitleVideo(app);
@@ -904,8 +980,9 @@ var FireCut = (function () {
         var iv = setInterval(function () {
           t += 100;
           if (!app.muted) { a.volume = Math.min(t / 1000, 1); }
-          if (t >= 1000) { clearInterval(iv); }
+          if (t >= 1000) { clearInterval(iv); app.titleMusicIv = null; }
         }, 100);
+        app.titleMusicIv = iv;
       };
       if (app.audioUnlocked) {
         beginTitleMusic();
@@ -1081,6 +1158,7 @@ var FireCut = (function () {
   }
 
   function playScene(app, name) {
+    if (app.stopped) { return; }
     var scene = app.model.sceneMap[name];
     if (!scene) { return; }
     app.current = scene;
@@ -1198,6 +1276,7 @@ var FireCut = (function () {
   /* ---------- scene ends ---------- */
 
   function sceneEnded(app, scene) {
+    if (app.stopped) { return; }
     if (scene.ending) { showEnding(app, scene); return; }
     if (scene.next) { playScene(app, scene.next); return; }
     if (app.choicesVisible) { return; }   /* CHOICES-AT already showed them */
@@ -1282,12 +1361,20 @@ var FireCut = (function () {
     app.waitAudio = null;
     if (app.waitFade) { clearInterval(app.waitFade); app.waitFade = null; }
     if (a) {
+      app.fadeOutAudio = a;
       var i = 0;
       var iv = setInterval(function () {
         i++;
+        if (app.stopped) { clearInterval(iv); try { a.pause(); } catch (e) {} return; }
         a.volume = Math.max(1 - i / 5, 0);
-        if (i >= 5) { clearInterval(iv); a.pause(); }
+        if (i >= 5) {
+          clearInterval(iv);
+          if (app.fadeOutIv === iv) { app.fadeOutIv = null; }
+          if (app.fadeOutAudio === a) { app.fadeOutAudio = null; }
+          try { a.pause(); } catch (e) {}
+        }
       }, 100);
+      app.fadeOutIv = iv;
     }
     playScene(app, target);
   }
@@ -1342,6 +1429,8 @@ var FireCut = (function () {
   function stopWaitLoop(app) {
     if (app.waitFade) { clearInterval(app.waitFade); app.waitFade = null; }
     if (app.waitAudio) { try { app.waitAudio.pause(); } catch (e) {} app.waitAudio = null; }
+    if (app.fadeOutIv) { clearInterval(app.fadeOutIv); app.fadeOutIv = null; }
+    if (app.fadeOutAudio) { try { app.fadeOutAudio.pause(); } catch (e) {} app.fadeOutAudio = null; }
   }
 
   function stopMusic(app) {
@@ -1353,6 +1442,10 @@ var FireCut = (function () {
 
   function stopTitleMusic(app) {
     app.titleMusicArmed = false;
+    if (app.titleMusicIv) {
+      clearInterval(app.titleMusicIv);
+      app.titleMusicIv = null;
+    }
     if (app.titleKeyHandler) {
       document.removeEventListener('keydown', app.titleKeyHandler);
       app.titleKeyHandler = null;
@@ -1820,7 +1913,8 @@ var FireCut = (function () {
   function bindKeys(app) {
     if (app.keysBound) { return; }
     app.keysBound = true;
-    document.addEventListener('keydown', function (e) {
+    app.keyHandler = function (e) {
+      if (app.stopped) { return; }
       var k = e.key;
       if (k === 'f' || k === 'F') {
         if (document.fullscreenElement) {
@@ -1849,7 +1943,8 @@ var FireCut = (function () {
           app.choiceEls[n].click();
         }
       }
-    });
+    };
+    document.addEventListener('keydown', app.keyHandler);
   }
 
   /* ----------------------------------------------------------------------
@@ -1862,6 +1957,7 @@ var FireCut = (function () {
     checkMedia: checkMedia,
     mediaKind: mediaKind,
     start: start,
+    preview: preview,
     mapSvg: buildMapSvg,
     version: '1'
   };

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<title>FireCut - save picker test</title>
+<style>
+  body { font: 18px "Segoe UI", Arial, sans-serif; background: #121318; color: #e9e7e1; padding: 40px; max-width: 720px; }
+  button { font: 600 18px "Segoe UI", Arial, sans-serif; padding: 12px 24px; border: 0; border-radius: 8px; background: #2f74e8; color: #fff; cursor: pointer; }
+  #out { margin-top: 24px; padding: 14px; border-radius: 8px; background: #1c1e26; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Can this computer save straight over story.js?</h1>
+<p>Double-click this file on a school laptop (open it in Chrome or Edge), then press the button.
+  Save the test file anywhere, for example the Desktop. Nothing else on the computer is changed.</p>
+<button type="button" id="go">Try saving a test file</button>
+<div id="out">Not tested yet.</div>
+<script>
+  var out = document.getElementById('out');
+  out.textContent = 'Browser: ' + navigator.userAgent + '\n' +
+    'Page opened from: ' + location.protocol + '\n' +
+    'showSaveFilePicker available: ' + (typeof window.showSaveFilePicker === 'function' ? 'YES' : 'NO');
+  document.getElementById('go').onclick = function () {
+    if (typeof window.showSaveFilePicker !== 'function') {
+      out.textContent += '\n\nRESULT: NO. The editor will fall back to downloading story.js.';
+      return;
+    }
+    window.showSaveFilePicker({
+      suggestedName: 'firecut-save-test.txt',
+      types: [{ description: 'Text file', accept: { 'text/plain': ['.txt'] } }]
+    }).then(function (handle) {
+      return handle.createWritable().then(function (w) {
+        return w.write('FireCut save test\n').then(function () { return w.close(); });
+      });
+    }).then(function () {
+      out.textContent += '\n\nRESULT: YES. Saving straight over story.js will work on this computer.';
+    }, function (err) {
+      var name = err && err.name ? err.name : 'unknown';
+      out.textContent += '\n\nRESULT: ' + (name === 'AbortError' ?
+        'cancelled. Press the button again and choose Save.' :
+        'BLOCKED (' + name + '). The editor will fall back to downloading story.js.');
+    });
+  };
+</script>
+</body>
+</html>

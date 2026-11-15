@@ -1,8 +1,9 @@
 # STORY.md - How to Write Your Story
 
 This guide is for storytellers, not coders. Your whole interactive film is
-one file called `story.js`. Open it in Notepad or any text editor, write
-your story, save, and double-click `PLAY.html` to watch it.
+one file called `story.js`. Double-click `EDITOR.html` to write and test your
+story with a live map and checker (or edit `story.js` in Notepad), save, and
+double-click `PLAY.html` to watch it.
 
 ## The big picture
 
@@ -170,6 +171,32 @@ screen), so resize the PNG itself to make it bigger or smaller.
 
 File names: **lowercase letters, numbers, hyphens, underscores only**.
 No capitals, no spaces. The checker warns you about anything else.
+
+## Editing with EDITOR.html
+
+Double-click `EDITOR.html` to open the built-in story editor in Chrome or Edge.
+It works offline with no installation and still saves a normal `story.js` file.
+
+- **Locked wrapper lines:** the first and last lines of `story.js` are locked
+  and backticks are blocked, so you cannot break the file by accident.
+- **Map tab (`Alt+1`):** draws your story as you type and highlights the scene
+  your cursor is in. Click a box to jump to that scene, or right-click a box to
+  play from that scene.
+- **Checks tab (`Alt+2`):** lists errors and warnings with line numbers. Click
+  any message to jump straight to that line.
+- **Media tab (`Alt+3`):** click **Choose media folder** and select your
+  `media` folder to see which files are used, spot missing or badly named files,
+  and click any file card to insert its `VIDEO:`, `IMAGE:` or `MUSIC:` line.
+- **Insert menu:** adds ready-made scene patterns (video with choices, timer
+  scene, image with music, ending card) with placeholders selected so you can
+  type straight over them.
+- **Play (`Ctrl+Enter`):** tests your story right inside the editor using your
+  unsaved text. Press `Ctrl+Shift+Enter` to play from the scene your cursor is
+  in, or `Esc` to close the preview.
+- **Download / Save (`Ctrl+S`):** saves `story.js`. In Chrome or Edge, pick
+  `story.js` in your project folder once and click **Replace**; after that,
+  `Ctrl+S` overwrites it in one step. If you close the tab by mistake, the
+  editor keeps a draft and offers to restore it next time.
 
 ## Checking your work
 
