@@ -1,7 +1,7 @@
 FireCut.story(`
 
 # Your story lives between these two lines. Never delete them,
-# and never type a backtick (`) inside your story.
+# and never type a backtick inside your story.
 # Full guide: STORY.md in this folder.
 
 TITLE: My Story

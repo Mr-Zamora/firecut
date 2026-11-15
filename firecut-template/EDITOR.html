@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FireCut Editor</title>
 <link rel="stylesheet" href="firecut/firecut.css">
+<link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="firecut/editor.css">
 </head>
 <body class="fe-body">
@@ -19,12 +20,11 @@
       <span class="fe-dirty" id="fe-dirty" title="Changed, not saved to story.js yet" hidden></span>
     </div>
     <div class="fe-actions">
-      <button type="button" class="fe-btn" id="fe-open" title="Open a story file"
-        data-soon="Coming in a later phase: opening a story file.">
+      <input type="file" id="fe-file-input" accept=".js,text/javascript,text/plain" hidden>
+      <button type="button" class="fe-btn" id="fe-open" title="Open a story file">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5h6l2 2h10V19H3z"/></svg><span class="fe-label">Open</span>
       </button>
-      <button type="button" class="fe-btn fe-primary" id="fe-download" title="Save story.js (Ctrl+S)"
-        data-soon="Coming in a later phase: saving story.js.">
+      <button type="button" class="fe-btn fe-primary" id="fe-download" title="Save story.js (Ctrl+S)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg><span class="fe-label">Download</span>
       </button>
       <div class="fe-menu-wrap">
@@ -34,27 +34,26 @@
           <svg class="fe-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>
         </button>
         <div class="fe-menu" id="fe-insert-menu" role="menu" hidden>
-          <button type="button" role="menuitem" data-soon="Coming in a later phase: inserting blocks.">
+          <button type="button" role="menuitem" data-insert="video-choices">
             <span class="fe-mi-name">Video scene with choices</span><span class="fe-mi-sub">SCENE, VIDEO, 2 x CHOICE</span></button>
-          <button type="button" role="menuitem" data-soon="Coming in a later phase: inserting blocks.">
+          <button type="button" role="menuitem" data-insert="buttons-during">
             <span class="fe-mi-name">Buttons during a clip</span><span class="fe-mi-sub">+ CHOICES-AT</span></button>
-          <button type="button" role="menuitem" data-soon="Coming in a later phase: inserting blocks.">
+          <button type="button" role="menuitem" data-insert="timer">
             <span class="fe-mi-name">Timer scene</span><span class="fe-mi-sub">VIDEO, TIMER, 2 x CHOICE</span></button>
-          <button type="button" role="menuitem" data-soon="Coming in a later phase: inserting blocks.">
+          <button type="button" role="menuitem" data-insert="image-music">
             <span class="fe-mi-name">Image with caption and music</span><span class="fe-mi-sub">IMAGE, TEXT, MUSIC, DURATION</span></button>
-          <button type="button" role="menuitem" data-soon="Coming in a later phase: inserting blocks.">
+          <button type="button" role="menuitem" data-insert="auto-continue">
             <span class="fe-mi-name">Auto-continue</span><span class="fe-mi-sub">VIDEO, NEXT</span></button>
-          <button type="button" role="menuitem" data-soon="Coming in a later phase: inserting blocks.">
+          <button type="button" role="menuitem" data-insert="ending-card">
             <span class="fe-mi-name">Text ending card</span><span class="fe-mi-sub">TEXT, ENDING</span></button>
-          <button type="button" role="menuitem" data-soon="Coming in a later phase: inserting blocks.">
+          <button type="button" role="menuitem" data-insert="single-choice">
             <span class="fe-mi-name">Single choice line</span><span class="fe-mi-sub">CHOICE: Label -&gt; scene</span></button>
           <div class="fe-menu-sep" role="separator"></div>
-          <button type="button" role="menuitem" data-soon="Coming in a later phase: starting a new story.">
+          <button type="button" role="menuitem" data-insert="new-story">
             <span class="fe-mi-name">New story</span><span class="fe-mi-sub">Replace with the beginner template</span></button>
         </div>
       </div>
-      <button type="button" class="fe-btn fe-play" id="fe-play" title="Play your story (Ctrl+Enter)"
-        data-soon="Play is coming soon.">
+      <button type="button" class="fe-btn fe-play" id="fe-play" title="Play your story (Ctrl+Enter)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fe-fill" d="M7 4.5v15l12.5-7.5z"/></svg><span class="fe-label">Play</span>
       </button>
       <button type="button" class="fe-btn" id="fe-help" title="Keyword help (F1)" aria-expanded="false" aria-controls="fe-help-panel">
@@ -78,10 +77,11 @@
       </div>
       <div class="fe-code" id="fe-code">
         <div class="fe-gutter" id="fe-gutter" aria-hidden="true"></div>
-        <div class="fe-edit">
+        <div class="fe-edit" id="fe-edit">
           <pre class="fe-hl" id="fe-hl" aria-hidden="true"></pre>
           <textarea class="fe-text" id="fe-text" spellcheck="false" wrap="off"
             autocomplete="off" autocapitalize="off" aria-label="Story text"></textarea>
+          <div class="fe-scene-pick" id="fe-scene-pick" role="listbox" aria-label="Choose target scene" hidden></div>
         </div>
       </div>
     </section>
@@ -101,9 +101,6 @@
         <button type="button" class="fe-tab" role="tab" id="fe-tab-media" data-tab="media"
           aria-selected="false" aria-controls="fe-panel-media" title="Media files (Alt+3)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-5-5-9 8.5"/></svg>Media</button>
-        <span class="fe-spacer"></span>
-        <button type="button" class="fe-btn fe-small" id="fe-refresh"
-          title="Update the map and checks from your text">Update</button>
       </div>
 
       <div class="fe-panel fe-panel-map" id="fe-panel-map" role="tabpanel" aria-labelledby="fe-tab-map">
@@ -141,12 +138,12 @@
       <div class="fe-panel fe-panel-media" id="fe-panel-media" role="tabpanel"
         aria-labelledby="fe-tab-media" hidden>
         <div class="fe-media-bar">
-          <button type="button" class="fe-btn" id="fe-media-choose"
-            data-soon="Coming in a later phase: choosing your media folder.">
+          <input type="file" id="fe-media-input" webkitdirectory directory multiple hidden>
+          <button type="button" class="fe-btn" id="fe-media-choose">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5h6l2 2h10V19H3z"/></svg>Choose media folder</button>
           <span class="fe-dim" id="fe-media-summary"></span>
         </div>
-        <p class="fe-note">Preview only: this list shows the demo's media file names.
+        <p class="fe-note" id="fe-media-note">Preview only: this list shows the demo's media file names.
           Your browser forgets the folder when the editor closes, so you choose it again each time.</p>
         <div id="fe-media"></div>
       </div>
@@ -173,6 +170,31 @@
     <span class="fe-st" id="fe-st-checked"></span>
     <span class="fe-st" id="fe-st-saved"></span>
   </footer>
+
+  <div class="fe-modal-bg" id="fe-draft-modal" role="dialog" aria-modal="true" aria-labelledby="fe-draft-title" hidden>
+    <div class="fe-modal">
+      <h2 id="fe-draft-title">Keep your unsaved changes?</h2>
+      <p id="fe-draft-msg"></p>
+      <div class="fe-modal-btns">
+        <button type="button" class="fe-btn" id="fe-draft-discard">Open story.js</button>
+        <button type="button" class="fe-btn fe-primary" id="fe-draft-keep">Keep my changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fe-preview" id="fe-preview" role="dialog" aria-modal="true" aria-label="Story preview" hidden>
+    <div class="fe-preview-bar">
+      <div class="fe-preview-left">
+        <span class="fe-preview-badge">Preview</span>
+        <span class="fe-preview-info" id="fe-preview-info">Playing from the start, using your unsaved story</span>
+      </div>
+      <div class="fe-preview-actions">
+        <button type="button" class="fe-btn fe-small" id="fe-preview-restart" title="Restart preview">Restart</button>
+        <button type="button" class="fe-btn fe-small fe-primary" id="fe-preview-close" title="Close preview (Esc)">Close</button>
+      </div>
+    </div>
+    <div class="fe-preview-stage" id="fe-preview-stage"></div>
+  </div>
 
   <div class="fe-toast" id="fe-toast" role="status" aria-live="polite" hidden></div>
 </div>
