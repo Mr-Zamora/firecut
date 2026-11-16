@@ -287,6 +287,58 @@ var FireCutEditor = (function () {
     };
   }
 
+  /* Which media kinds each file keyword accepts in the inline file picker. */
+  var FILE_ACCEPT_KINDS = {
+    'VIDEO': { video: 1 },
+    'IMAGE': { image: 1 },
+    'MUSIC': { audio: 1 },
+    'WAIT-LOOP': { audio: 1 },
+    'TITLE-BACKGROUND': { video: 1, image: 1 },
+    'TITLE-OVERLAY': { image: 1 },
+    'TITLE-MUSIC': { audio: 1 }
+  };
+
+  /* If lineText has a media-file slot (a file keyword value, or after | on
+     CHOICE:) and colOffset is in that slot, return its bounds. */
+  function fileSpanAt(lineText, colOffset) {
+    if (/^\s*#/.test(lineText)) { return null; }
+    var m = /^(\s*)([A-Za-z][A-Za-z\-]*)(\s*:)(.*)$/.exec(lineText);
+    if (!m) { return null; }
+    var key = m[2].toUpperCase();
+    var afterColon = m[1].length + m[2].length + m[3].length;
+    var slotStart, slotEnd, triggerStart, accept;
+    if (key === 'CHOICE') {
+      var bar = lineText.indexOf('|', afterColon);
+      if (bar < 0) { return null; }
+      triggerStart = bar + 1;
+      slotStart = bar + 1;
+      slotEnd = lineText.length;
+      accept = { image: 1 };
+    } else if (FILE_ACCEPT_KINDS[key]) {
+      triggerStart = afterColon;
+      slotStart = afterColon;
+      slotEnd = lineText.length;
+      accept = FILE_ACCEPT_KINDS[key];
+    } else {
+      return null;
+    }
+    if (colOffset < triggerStart || colOffset > slotEnd) { return null; }
+    var raw = lineText.substring(slotStart, slotEnd);
+    var lead = /^(\s*)/.exec(raw)[1].length;
+    var trail = /(\s*)$/.exec(raw)[1].length;
+    var tokStart = slotStart + lead;
+    var tokEnd = Math.max(tokStart, slotEnd - trail);
+    return {
+      key: key,
+      slotStart: slotStart,
+      start: tokStart,
+      end: tokEnd,
+      needsSpace: lead === 0,
+      value: lineText.substring(tokStart, tokEnd),
+      accept: accept
+    };
+  }
+
   function sceneTag(scene, model) {
     var parts = [];
     if (model && model.start === scene.name) { parts.push('start'); }
@@ -478,6 +530,61 @@ var FireCutEditor = (function () {
     try { window.localStorage.removeItem('firecut-editor-' + key); } catch (e) {}
   }
 
+  /* ---------- remembered file handle (IndexedDB) ----------
+     A FileSystemFileHandle survives structured clone, so we keep it in IDB:
+     after the first save the browser remembers the real story.js across
+     sessions, and Ctrl+S writes straight to it (one Allow prompt at most). */
+
+  function idb() {
+    return new Promise(function (res, rej) {
+      var req = indexedDB.open('firecut-editor', 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore('kv'); };
+      req.onsuccess = function () { res(req.result); };
+      req.onerror = function () { rej(req.error); };
+    });
+  }
+
+  function idbGet(key) {
+    return idb().then(function (db) {
+      return new Promise(function (res, rej) {
+        var req = db.transaction('kv').objectStore('kv').get(key);
+        req.onsuccess = function () { res(req.result || null); };
+        req.onerror = function () { rej(req.error); };
+      });
+    });
+  }
+
+  function idbSet(key, val) {
+    return idb().then(function (db) {
+      return new Promise(function (res, rej) {
+        var req = db.transaction('kv', 'readwrite').objectStore('kv').put(val, key);
+        req.onsuccess = function () { res(); };
+        req.onerror = function () { rej(req.error); };
+      });
+    });
+  }
+
+  function idbDel(key) {
+    return idb().then(function (db) {
+      return new Promise(function (res, rej) {
+        var req = db.transaction('kv', 'readwrite').objectStore('kv').delete(key);
+        req.onsuccess = function () { res(); };
+        req.onerror = function () { rej(req.error); };
+      });
+    });
+  }
+
+  function rememberHandle(handle) {
+    app.fileHandle = handle || null;
+    var p = handle ? idbSet('story-file', handle) : idbDel('story-file');
+    p.then(null, function () {});
+  }
+
+  function forgetHandle() {
+    app.fileHandle = null;
+    idbDel('story-file').then(null, function () {});
+  }
+
   /* ---------- toast ---------- */
 
   var toastTimer = null;
@@ -570,19 +677,49 @@ var FireCutEditor = (function () {
     var lineText = ta.value.substring(b.start, b.end);
     var colOffset = ta.selectionStart - b.start;
     var span = targetSpanAt(lineText, colOffset);
-    if (!span) {
+    var fspan = span ? null : fileSpanAt(lineText, colOffset);
+    var curVal = span ? span.value : (fspan ? fspan.value : null);
+    if (curVal === null) {
       app.dismissedPickLine = -1;
       app.dismissedPickVal = null;
       hideScenePicker();
       return;
     }
-    if (app.dismissedPickLine === lineNum && app.dismissedPickVal === span.value) {
+    if (app.dismissedPickLine === lineNum && app.dismissedPickVal === curVal) {
       hideScenePicker();
       return;
     }
 
     var model = app.result.model;
-    var val = span.value;
+    pick.innerHTML = (span ? scenePickerHtml(model, curVal) :
+      filePickerHtml(model, fspan)).join('');
+    pick.hidden = false;
+
+    var editEl = $('fe-edit');
+    var lh = app.font ? Math.round(app.font * 1.47) : 22;
+    var lineTop = 10 + lineIdx * lh - ta.scrollTop;
+    if (lineTop + lh < 0 || lineTop > editEl.clientHeight - 10) {
+      pick.hidden = true;
+      return;
+    }
+    var top = lineTop + lh + 4;
+    if (top + pick.offsetHeight > editEl.clientHeight - 8) {
+      top = Math.max(4, lineTop - pick.offsetHeight - 4);
+    }
+    var left = 4 + Math.round((span || fspan).start * (app.font || 15) * 0.6) - ta.scrollLeft;
+    var hlChildren = $('fe-hl').children;
+    var tEl = hlChildren[lineIdx] ?
+      hlChildren[lineIdx].querySelector(span ? '.fe-t' : '.fe-f') : null;
+    if (tEl && editEl.getBoundingClientRect) {
+      var er = editEl.getBoundingClientRect(), tr = tEl.getBoundingClientRect();
+      if (tr.width > 0 || tr.left > 0) { left = tr.left - er.left; }
+    }
+    var maxLeft = Math.max(8, editEl.clientWidth - pick.offsetWidth - 12);
+    pick.style.top = Math.round(top) + 'px';
+    pick.style.left = Math.round(Math.max(8, Math.min(maxLeft, left))) + 'px';
+  }
+
+  function scenePickerHtml(model, val) {
     var canCreateTyped = /^[a-z0-9\-]+$/.test(val) && val !== 'scene-name' &&
       !model.sceneMap.hasOwnProperty(val);
     var html = ['<div class="fe-sp-head"><span>Link to scene</span><span>Click to pick</span></div>'];
@@ -613,49 +750,86 @@ var FireCutEditor = (function () {
         esc(nextNew) + '"><span class="fe-sp-name">+ New scene (' + esc(nextNew) +
         ')</span><span class="fe-sp-meta">add below</span></button>');
     }
-
-    pick.innerHTML = html.join('');
-    pick.hidden = false;
-
-    var editEl = $('fe-edit');
-    var lh = app.font ? Math.round(app.font * 1.47) : 22;
-    var lineTop = 10 + lineIdx * lh - ta.scrollTop;
-    if (lineTop + lh < 0 || lineTop > editEl.clientHeight - 10) {
-      pick.hidden = true;
-      return;
-    }
-    var top = lineTop + lh + 4;
-    if (top + pick.offsetHeight > editEl.clientHeight - 8) {
-      top = Math.max(4, lineTop - pick.offsetHeight - 4);
-    }
-    var left = 4 + Math.round(span.start * (app.font || 15) * 0.6) - ta.scrollLeft;
-    var hlChildren = $('fe-hl').children;
-    var tEl = hlChildren[lineIdx] ? hlChildren[lineIdx].querySelector('.fe-t') : null;
-    if (tEl && editEl.getBoundingClientRect) {
-      var er = editEl.getBoundingClientRect(), tr = tEl.getBoundingClientRect();
-      if (tr.width > 0 || tr.left > 0) { left = tr.left - er.left; }
-    }
-    var maxLeft = Math.max(8, editEl.clientWidth - pick.offsetWidth - 12);
-    pick.style.top = Math.round(top) + 'px';
-    pick.style.left = Math.round(Math.max(8, Math.min(maxLeft, left))) + 'px';
+    return html;
   }
 
-  function pickSceneTarget(targetName) {
+  function filePickerHtml(model, fspan) {
+    var val = fspan.value;
+    var isNone = /^none$/i.test(val);
+    var use = mediaUsage(model);
+    var files = [];
+    each(app.mediaFiles, function (f) {
+      if (fspan.accept[FireCut.mediaKind(f)]) { files.push(f); }
+    });
+    var exact = false;
+    each(files, function (f) { if (f === val) { exact = true; } });
+    var lv = isNone ? '' : val.toLowerCase();
+    if (lv && !exact) {
+      var filtered = [];
+      each(files, function (f) {
+        if (f.toLowerCase().indexOf(lv) >= 0) { filtered.push(f); }
+      });
+      files = filtered;
+    }
+
+    var html = ['<div class="fe-sp-head"><span>Media file</span><span>Click to pick</span></div>'];
+
+    if (!app.mediaFolderChosen) {
+      html.push('<div class="fe-sp-note">Showing demo file names. ' +
+        '<button type="button" class="fe-link" data-sp-folder="1">Choose your media ' +
+        'folder</button> to see your real files.</div>');
+    }
+    if (val && !isNone && idxOf(app.mediaFiles, val) < 0) {
+      html.push('<div class="fe-sp-warn">"' + esc(val) +
+        '" is not in the media folder.</div>');
+    }
+
+    if (files.length) {
+      html.push('<div class="fe-sp-list">');
+      each(files, function (f) {
+        var active = f === val ? ' fe-sp-active' : '';
+        var meta = FireCut.mediaKind(f);
+        var u = use[f];
+        if (u && u.length) {
+          meta += ' · ' + u[0].where + (u.length > 1 ? ' +' + (u.length - 1) : '');
+        }
+        html.push('<button type="button" class="fe-sp-item fe-sp-file' + active +
+          '" data-sp-file="' + esc(f) + '"><span class="fe-sp-name">' +
+          esc(f) + '</span><span class="fe-sp-meta">' + esc(meta) + '</span></button>');
+      });
+      html.push('</div>');
+    } else {
+      html.push('<div class="fe-sp-empty">' + (lv && !exact ?
+        'No files match "' + esc(val) + '".' :
+        'No suitable files in the media folder.') + '</div>');
+    }
+    return html;
+  }
+
+  function pickTargetAt(spanAt, text) {
     var ta = $('fe-text');
     var lineIdx = cursorLine();
     var lineNum = lineIdx + 1;
     var b = lineBounds(ta.value, lineNum);
     var lineText = ta.value.substring(b.start, b.end);
-    var span = targetSpanAt(lineText, ta.selectionStart - b.start);
+    var span = spanAt(lineText, ta.selectionStart - b.start);
     if (!span) { hideScenePicker(); return; }
-    var insertStr = (span.needsSpace ? ' ' : '') + targetName;
+    var insertStr = (span.needsSpace ? ' ' : '') + text;
     var repStart = b.start + span.start;
     var repEnd = b.start + span.end;
     var caret = repStart + insertStr.length;
     app.dismissedPickLine = lineNum;
-    app.dismissedPickVal = targetName;
+    app.dismissedPickVal = text;
     hideScenePicker();
     replaceRange(repStart, repEnd, insertStr, caret, caret);
+  }
+
+  function pickSceneTarget(targetName) {
+    pickTargetAt(targetSpanAt, targetName);
+  }
+
+  function pickFileTarget(fileName) {
+    pickTargetAt(fileSpanAt, fileName);
   }
 
   function createSceneFromTarget(newSceneName) {
@@ -1643,7 +1817,7 @@ var FireCutEditor = (function () {
     };
   }
 
-  function openChosenFile(file) {
+  function openChosenFile(file, handle) {
     if (!file) { return; }
     if (app.dirty && !window.confirm('You have unsaved changes. Open "' + file.name + '" and replace them?')) {
       return;
@@ -1656,7 +1830,7 @@ var FireCutEditor = (function () {
         /* Plain story text without FireCut.story(`...`); wrapper. */
         raw = '\n' + text.replace(/`/g, '\'') + '\n';
       }
-      app.fileHandle = null;
+      rememberHandle(handle || null);
       app.everSaved = false;
       app.draftTime = null;
       removeStore('draft-text');
@@ -1711,6 +1885,33 @@ var FireCutEditor = (function () {
     });
   }
 
+  /* Resolves true when we may write to handle (asks once per session if the
+     browser needs a fresh OK; Ctrl+S / button click counts as the gesture). */
+  function ensureWrite(handle) {
+    var opts = { mode: 'readwrite' };
+    return handle.queryPermission(opts).then(function (p) {
+      if (p === 'granted') { return true; }
+      return handle.requestPermission(opts).then(function (p2) {
+        return p2 === 'granted';
+      }, function () { return false; });
+    }, function () { return false; });
+  }
+
+  function pickSaveTarget(text) {
+    window.showSaveFilePicker({
+      suggestedName: 'story.js',
+      types: [{ description: 'FireCut story (story.js)', accept: { 'text/javascript': ['.js'] } }]
+    }).then(function (handle) {
+      rememberHandle(handle);
+      return writeToHandle(handle, text);
+    }).then(function () {
+      onSaved(true);
+    }, function (err) {
+      if (err && err.name === 'AbortError') { return; }
+      downloadFallback(text);
+    });
+  }
+
   function saveStory() {
     if (app.analyseTimer) {
       clearTimeout(app.analyseTimer);
@@ -1719,33 +1920,27 @@ var FireCutEditor = (function () {
     }
     var text = $('fe-text').value;
     if (app.fileHandle && app.fileHandle.createWritable) {
-      writeToHandle(app.fileHandle, text).then(function () {
-        onSaved(true);
-      }, function () {
-        app.fileHandle = null;
-        saveStory();
+      ensureWrite(app.fileHandle).then(function (ok) {
+        if (!ok) { forgetHandle(); saveStory(); return; }
+        writeToHandle(app.fileHandle, text).then(function () {
+          onSaved(true);
+        }, function () {
+          forgetHandle();
+          saveStory();
+        });
       });
       return;
     }
     if (typeof window.showSaveFilePicker === 'function') {
-      try {
-        window.showSaveFilePicker({
-          suggestedName: 'story.js',
-          types: [{ description: 'FireCut story (story.js)', accept: { 'text/javascript': ['.js'] } }]
-        }).then(function (handle) {
-          app.fileHandle = handle;
-          return writeToHandle(handle, text);
-        }).then(function () {
-          onSaved(true);
-        }, function (err) {
-          if (err && err.name === 'AbortError') { return; }
-          downloadFallback(text);
-        });
-        return;
-      } catch (e) {
-        downloadFallback(text);
-        return;
-      }
+      idbGet('story-file').then(function (stored) {
+        if (stored && stored.createWritable) {
+          app.fileHandle = stored;
+          saveStory();
+          return;
+        }
+        pickSaveTarget(text);
+      }, function () { pickSaveTarget(text); });
+      return;
     }
     downloadFallback(text);
   }
@@ -1753,6 +1948,21 @@ var FireCutEditor = (function () {
   function bindFileActions() {
     var input = $('fe-file-input');
     $('fe-open').onclick = function () {
+      if (typeof window.showOpenFilePicker === 'function') {
+        window.showOpenFilePicker({
+          types: [{ description: 'FireCut story', accept: { 'text/javascript': ['.js'] } }],
+          multiple: false
+        }).then(function (handles) {
+          if (!handles || !handles.length) { return; }
+          var h = handles[0];
+          return h.getFile().then(function (file) { openChosenFile(file, h); });
+        }, function (err) {
+          if (err && err.name === 'AbortError') { return; }
+          input.value = '';
+          input.click();
+        });
+        return;
+      }
       input.value = '';
       input.click();
     };
@@ -1770,6 +1980,16 @@ var FireCutEditor = (function () {
     window.addEventListener('drop', function (e) {
       if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) { return; }
       e.preventDefault();
+      var item = e.dataTransfer.items && e.dataTransfer.items[0];
+      if (item && item.getAsFileSystemHandle) {
+        item.getAsFileSystemHandle().then(function (h) {
+          if (h && h.kind === 'file') {
+            return h.getFile().then(function (f) { openChosenFile(f, h); });
+          }
+          openChosenFile(e.dataTransfer.files[0]);
+        }, function () { openChosenFile(e.dataTransfer.files[0]); });
+        return;
+      }
       openChosenFile(e.dataTransfer.files[0]);
     });
 
@@ -1945,6 +2165,25 @@ var FireCutEditor = (function () {
         return;
       }
 
+      var spFile = e.target;
+      while (spFile && spFile !== document && !(spFile.getAttribute && spFile.getAttribute('data-sp-file'))) {
+        spFile = spFile.parentNode;
+      }
+      if (spFile && spFile !== document) {
+        pickFileTarget(spFile.getAttribute('data-sp-file'));
+        return;
+      }
+
+      var spFolder = e.target;
+      while (spFolder && spFolder !== document && !(spFolder.getAttribute && spFolder.getAttribute('data-sp-folder'))) {
+        spFolder = spFolder.parentNode;
+      }
+      if (spFolder && spFolder !== document) {
+        hideScenePicker();
+        $('fe-media-input').click();
+        return;
+      }
+
       var kwBtn = e.target;
       while (kwBtn && kwBtn !== document && !(kwBtn.getAttribute && kwBtn.getAttribute('data-kw'))) {
         kwBtn = kwBtn.parentNode;
@@ -1994,7 +2233,8 @@ var FireCutEditor = (function () {
         if ($('fe-scene-pick') && !$('fe-scene-pick').hidden) {
           var lNum = cursorLine() + 1;
           var b = lineBounds(ta.value, lNum);
-          var sp = targetSpanAt(ta.value.substring(b.start, b.end), ta.selectionStart - b.start);
+          var sp = targetSpanAt(ta.value.substring(b.start, b.end), ta.selectionStart - b.start) ||
+            fileSpanAt(ta.value.substring(b.start, b.end), ta.selectionStart - b.start);
           app.dismissedPickLine = lNum;
           app.dismissedPickVal = sp ? sp.value : null;
           hideScenePicker();

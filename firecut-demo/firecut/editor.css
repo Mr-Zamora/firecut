@@ -474,6 +474,22 @@
   color: var(--fe-c-scene);
 }
 
+.fe-sp-file .fe-sp-name {
+  color: var(--fe-c-file);
+}
+
+.fe-sp-note,
+.fe-sp-warn,
+.fe-sp-empty {
+  padding: 4px 8px 6px;
+  font-size: 12px;
+  color: var(--fe-dim);
+}
+
+.fe-sp-warn {
+  color: #f0b429;
+}
+
 /* ---------- right pane: tabs ---------- */
 
 .fe-tabs {

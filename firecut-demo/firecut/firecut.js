@@ -1356,10 +1356,14 @@ var FireCut = (function () {
   function choose(app, target) {
     clearTimers(app);
     /* The wait loop fades out over 0.5s while the next scene is already
-       loading, so the two overlap and the switch stays fast. */
+       loading, so the two overlap and the switch stays fast. The fade is
+       armed after playScene() because playScene() clears app.fadeOut* via
+       stopWaitLoop(); app.waitAudio must be read first, before the new
+       scene can start its own loop. */
     var a = app.waitAudio;
     app.waitAudio = null;
     if (app.waitFade) { clearInterval(app.waitFade); app.waitFade = null; }
+    playScene(app, target);
     if (a) {
       app.fadeOutAudio = a;
       var i = 0;
@@ -1376,7 +1380,6 @@ var FireCut = (function () {
       }, 100);
       app.fadeOutIv = iv;
     }
-    playScene(app, target);
   }
 
   /* ---------- endings ---------- */
